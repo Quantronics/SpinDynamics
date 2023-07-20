@@ -218,7 +218,8 @@ def inspect_nuclear_spin(t, result, I, nS):
     return axes
 
 
-def tau_parallelism(H, ket0, tau, args, nS, nI):
+def tau_parallelism(H, ket0, nS, nI, args):
+    tau = args['tau']
     pulse_duration = args['pulse_duration']
     kappa = args['kappa']
     N_pulses = args['N_pulses']
