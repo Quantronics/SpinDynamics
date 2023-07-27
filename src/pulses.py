@@ -64,8 +64,7 @@ def input_CPMG_pulse(t,tau,pulse_duration):
     pulse_duration: float
         Duration of the generated pulse.
     """
-    rabi_freq = 2*np.pi*5
-    pulse_duration = 2*np.pi / rabi_freq / 2
+    rabi_freq = 2*np.pi / pulse_duration
     t_module =  t%(2*tau) - tau
     if t_module > 0 and t_module < pulse_duration:
         return rabi_freq / 2
