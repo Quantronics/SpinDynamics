@@ -81,7 +81,24 @@ def pulse_sequence_m(t, args):
 
 ############################## Multiprocessing Functions ##############################
 
-def mp_raman_spec_ft(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, Sz, nS):
+def mp_get_allowed_rabi(H, ket0, allowed_chevron_det, amp, A, dur, sigma_z, dim):
+    gamma_R = (0.8*1000)**-1 # (0.8 ms)**-1
+    c_ops = np.sqrt(gamma_R) * tensor(sigmam(), qeye(dim))
+    t = np.linspace(0, dur+100, int(dur+100))
+    args = {
+        'sigma_raise': 1,
+        'sigma_gauss': dur,
+        'pulse_duration': dur,
+        'amplitude': amp,
+        't0': dur/2,
+        'detuning': A/2 + allowed_chevron_det, # 2pi*f in MHz
+        'phase': 0,
+    }
+    result = mesolve(H, ket0, t, [], [], args=args)
+
+    return expect(tensor(sigma_z, qeye(dim)), result.states)[-1]
+
+def mp_raman_spec_ft(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, sigma_z, dim):
     """
     Get Raman Rabi with flattop pulses
     Parameters
@@ -98,13 +115,19 @@ def mp_raman_spec_ft(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, Sz, nS)
     sigma_raise: float
         sigma_raise * 6 is the ramp up time of a flattop pulse (us)
         
+    A: float
+        hyperfine constant (MHz * 2pi)
+
+    Delta: float
+        Raman detuning (MHz * 2pi)
+        
     seq_args: dictionary of float values
         parameters that define the pulse shape
             
-    Sz: Qobj
+    sigma_z: Qobj
         Pauli Z operator
         
-    nS: int
+    dim: int
         Dimension of the electron spin subspace
     """
     t0 = dur/2+sigma_raise*6
@@ -117,9 +140,9 @@ def mp_raman_spec_ft(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, Sz, nS)
     seq_args["args_pulses"][1]["detuning"] = -(A)/2 - Delta
     result = mesolve(H, ket0, t, [], [], args=seq_args)
 
-    return expect(tensor(qeye(nS), Sz), result.states)[-1]
+    return expect(tensor(qeye(dim), sigma_z), result.states)[-1]
 
-def mp_raman_spec_s(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, Sz, nS):
+def mp_raman_spec_s(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, sigma_z, dim):
     """
     Get Raman Rabi with square pulses
     Parameters
@@ -135,14 +158,20 @@ def mp_raman_spec_s(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, Sz, nS):
 
     sigma_raise: float
         sigma_raise * 6 is the ramp up time of a flattop pulse (us)
+
+    A: float
+        hyperfine constant (MHz * 2pi)
+
+    Delta: float
+        Raman detuning (MHz * 2pi)
         
     seq_args: dictionary of float values
         parameters that define the pulse shape
             
-    Sz: Qobj
+    sigma_z: Qobj
         Pauli Z operator
         
-    nS: int
+    dim: int
         Dimension of the electron spin subspace
     """
     t0 = dur/2+sigma_raise*3
@@ -155,92 +184,75 @@ def mp_raman_spec_s(H, ket0, dur, sigma_raise, det, A, Delta, seq_args, Sz, nS):
     seq_args["args_pulses"][1]["detuning"] = -(A)/2 + Delta
     result = mesolve(H, ket0, t, [], [], args=seq_args)
 
-    return expect(tensor(qeye(nS), Sz), result.states)[-1]
+    return expect(tensor(qeye(dim), sigma_z), result.states)[-1]
 
-def mp_raman_rabi_ft(H, ket0, dur, sigma_raise, seq_args, Sz, nS):
-    """
-    Get Raman Rabi with flattop pulses
-    Parameters
-    ----------
-    H: Qobj
-        H0 + H(t)
+# def mp_raman_rabi_ft(H, ket0, dur, sigma_raise, seq_args, Sz, nS):
+#     """
+#     Get Raman Rabi with flattop pulses
+#     Parameters
+#     ----------
+#     H: Qobj
+#         H0 + H(t)
         
-    ket0: Qobj
-        initial state
+#     ket0: Qobj
+#         initial state
         
-    dur: float
-        pulse duration (us)
+#     dur: float
+#         pulse duration (us)
 
-    sigma_raise: float
-        sigma_raise * 6 is the ramp up time of a flattop pulse (us)
+#     sigma_raise: float
+#         sigma_raise * 6 is the ramp up time of a flattop pulse (us)
         
-    seq_args: dictionary of float values
-        parameters that define the pulse shape
+#     seq_args: dictionary of float values
+#         parameters that define the pulse shape
             
-    Sz: Qobj
-        Pauli Z operator
+#     Sz: Qobj
+#         Pauli Z operator
         
-    nS: int
-        Dimension of the electron spin subspace
-    """
-    t0 = dur/2+sigma_raise*6
-    t = np.linspace(0, t0*2, int(t0/2))
-    seq_args["args_pulses"][0]["pulse_duration"] = dur
-    seq_args["args_pulses"][1]["pulse_duration"] = dur
-    seq_args["args_pulses"][0]["t0"] = t0
-    seq_args["args_pulses"][1]["t0"] = t0
-    result = mesolve(H, ket0, t, [], [], args=seq_args)
+#     nS: int
+#         Dimension of the electron spin subspace
+#     """
+#     t0 = dur/2+sigma_raise*6
+#     t = np.linspace(0, t0*2, int(t0/2))
+#     seq_args["args_pulses"][0]["pulse_duration"] = dur
+#     seq_args["args_pulses"][1]["pulse_duration"] = dur
+#     seq_args["args_pulses"][0]["t0"] = t0
+#     seq_args["args_pulses"][1]["t0"] = t0
+#     result = mesolve(H, ket0, t, [], [], args=seq_args)
 
-    return expect(tensor(qeye(nS), Sz), result.states)[-1]
+#     return expect(tensor(qeye(nS), Sz), result.states)[-1]
 
-def mp_raman_rabi_s(H, ket0, t, c_ops, dur, sigma_raise, seq_args, Sz, nS):
-    """
-    Get Raman Rabi with square pulses
-    Parameters
-    ----------
-    H: Qobj
-        H0 + H(t)
+# def mp_raman_rabi_s(H, ket0, t, c_ops, dur, sigma_raise, seq_args, Sz, nS):
+#     """
+#     Get Raman Rabi with square pulses
+#     Parameters
+#     ----------
+#     H: Qobj
+#         H0 + H(t)
         
-    ket0: Qobj
-        initial state
+#     ket0: Qobj
+#         initial state
         
-    dur: float
-        pulse duration (us)
+#     dur: float
+#         pulse duration (us)
 
-    sigma_raise: float
-        sigma_raise * 6 is the ramp up time of a flattop pulse (us)
+#     sigma_raise: float
+#         sigma_raise * 6 is the ramp up time of a flattop pulse (us)
         
-    seq_args: dictionary of float values
-        parameters that define the pulse shape
+#     seq_args: dictionary of float values
+#         parameters that define the pulse shape
             
-    Sz: Qobj
-        Pauli Z operator
+#     Sz: Qobj
+#         Pauli Z operator
         
-    nS: int
-        Dimension of the electron spin subspace
-    """
+#     nS: int
+#         Dimension of the electron spin subspace
+#     """
 
-    seq_args["args_pulses"][0]["pulse_duration"] = dur+sigma_raise*6
-    seq_args["args_pulses"][1]["pulse_duration"] = dur+sigma_raise*6
-    seq_args["args_pulses"][0]["t0"] = t0
-    seq_args["args_pulses"][1]["t0"] = t0
-    result = mesolve(H, ket0, t, c_ops, [], args=seq_args)
+#     seq_args["args_pulses"][0]["pulse_duration"] = dur+sigma_raise*6
+#     seq_args["args_pulses"][1]["pulse_duration"] = dur+sigma_raise*6
+#     seq_args["args_pulses"][0]["t0"] = t0
+#     seq_args["args_pulses"][1]["t0"] = t0
+#     result = mesolve(H, ket0, t, c_ops, [], args=seq_args)
 
-    return expect(tensor(qeye(nS), Sz), result.states), expect(tensor(Sz, qeye(nS)), result.states)
-
-def mp_get_allowed_rabi(H, ket0, allowed_chevron_det, amp, A, dur, Sz, nI):
-    gamma_R = (0.8*1000)**-1 # (0.8 ms)**-1
-    c_ops = np.sqrt(gamma_R) * tensor(sigmam(), qeye(nI))
-    t = np.linspace(0, dur+100, int(dur))
-    args = {
-        'sigma_raise': 1,
-        'sigma_gauss': dur,
-        'pulse_duration': dur,
-        'amplitude': amp,
-        't0': dur/2,
-        'detuning': -A/2 + allowed_chevron_det, # 2pi*f in MHz
-        'phase': 0,
-    }
-    result = mesolve(H, ket0, t, [], [], args=args)
-
-    return expect(tensor(Sz, qeye(nI)), result.states)[-1]
+#     return expect(tensor(qeye(nS), Sz), result.states), expect(tensor(Sz, qeye(nS)), result.states)
