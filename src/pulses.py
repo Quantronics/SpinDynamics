@@ -342,3 +342,7 @@ def parallelize_CPMG(H, ket0, sim_args, nS, *args):
     
     ops = (e_spin_down * e_spin_down.dag(),) + generate_identity_ops(*args)
     return expect(tensor(*ops), result.states)[-1]
+
+def mp_test_quantum_object(H, dur):
+
+    return H
