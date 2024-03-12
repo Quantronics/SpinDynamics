@@ -1,3 +1,6 @@
 .ipynb_checkpoints/
 plots/
 .DS_Store
+
+# pycache
+__pycache__/
